@@ -1,0 +1,161 @@
+import { addDays, startOfDay } from './dateUtils';
+
+let nextId = 100;
+
+export function generateId() {
+  return String(nextId++);
+}
+
+export function createSampleData() {
+  const today = startOfDay(new Date());
+
+  return [
+    {
+      id: '1',
+      name: 'Project Planning',
+      startDate: addDays(today, -5),
+      endDate: addDays(today, 2),
+      progress: 90,
+      color: '#4C9AFF',
+      dependencies: [],
+      group: 'Planning',
+      milestone: false,
+    },
+    {
+      id: '2',
+      name: 'Requirements Gathering',
+      startDate: addDays(today, -3),
+      endDate: addDays(today, 4),
+      progress: 70,
+      color: '#4C9AFF',
+      dependencies: ['1'],
+      group: 'Planning',
+      milestone: false,
+    },
+    {
+      id: '3',
+      name: 'Planning Complete',
+      startDate: addDays(today, 4),
+      endDate: addDays(today, 4),
+      progress: 0,
+      color: '#FF5630',
+      dependencies: ['2'],
+      group: 'Planning',
+      milestone: true,
+    },
+    {
+      id: '4',
+      name: 'UI Design',
+      startDate: addDays(today, 3),
+      endDate: addDays(today, 12),
+      progress: 40,
+      color: '#36B37E',
+      dependencies: ['2'],
+      group: 'Design',
+      milestone: false,
+    },
+    {
+      id: '5',
+      name: 'Database Schema',
+      startDate: addDays(today, 5),
+      endDate: addDays(today, 10),
+      progress: 20,
+      color: '#36B37E',
+      dependencies: ['3'],
+      group: 'Design',
+      milestone: false,
+    },
+    {
+      id: '6',
+      name: 'API Architecture',
+      startDate: addDays(today, 5),
+      endDate: addDays(today, 11),
+      progress: 15,
+      color: '#36B37E',
+      dependencies: ['3'],
+      group: 'Design',
+      milestone: false,
+    },
+    {
+      id: '7',
+      name: 'Frontend Development',
+      startDate: addDays(today, 13),
+      endDate: addDays(today, 28),
+      progress: 0,
+      color: '#6554C0',
+      dependencies: ['4'],
+      group: 'Development',
+      milestone: false,
+    },
+    {
+      id: '8',
+      name: 'Backend Development',
+      startDate: addDays(today, 12),
+      endDate: addDays(today, 26),
+      progress: 0,
+      color: '#6554C0',
+      dependencies: ['5', '6'],
+      group: 'Development',
+      milestone: false,
+    },
+    {
+      id: '9',
+      name: 'Integration Testing',
+      startDate: addDays(today, 27),
+      endDate: addDays(today, 33),
+      progress: 0,
+      color: '#FF8B00',
+      dependencies: ['7', '8'],
+      group: 'Testing',
+      milestone: false,
+    },
+    {
+      id: '10',
+      name: 'User Acceptance Testing',
+      startDate: addDays(today, 34),
+      endDate: addDays(today, 38),
+      progress: 0,
+      color: '#FF8B00',
+      dependencies: ['9'],
+      group: 'Testing',
+      milestone: false,
+    },
+    {
+      id: '11',
+      name: 'Deployment',
+      startDate: addDays(today, 39),
+      endDate: addDays(today, 41),
+      progress: 0,
+      color: '#FF5630',
+      dependencies: ['10'],
+      group: 'Release',
+      milestone: false,
+    },
+    {
+      id: '12',
+      name: 'Go Live',
+      startDate: addDays(today, 41),
+      endDate: addDays(today, 41),
+      progress: 0,
+      color: '#FF5630',
+      dependencies: ['11'],
+      group: 'Release',
+      milestone: true,
+    },
+  ];
+}
+
+export const COLORS = [
+  '#4C9AFF',
+  '#36B37E',
+  '#6554C0',
+  '#FF8B00',
+  '#FF5630',
+  '#00B8D9',
+  '#8777D9',
+  '#57D9A3',
+  '#FFC400',
+  '#CF9FFF',
+];
+
+export const GROUPS = ['Planning', 'Design', 'Development', 'Testing', 'Release'];
