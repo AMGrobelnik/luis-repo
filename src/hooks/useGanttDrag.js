@@ -1,97 +1,81 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { addDays, startOfDay } from '../utils/dateUtils';
 
-export function useGanttDrag({ tasks, onTaskUpdate, dayWidth, timelineStart }) {
-  const [dragState, setDragState] = useState(null);
-  const dragRef = useRef(null);
+const DRAG_THRESHOLD = 4;
 
-  const getDateFromX = useCallback(
-    (x) => {
-      const dayOffset = Math.round(x / dayWidth);
-      return addDays(timelineStart, dayOffset);
-    },
-    [dayWidth, timelineStart]
-  );
+export function useGanttDrag({ tasks, onTaskUpdate, dayWidth }) {
+  const [dragState, setDragState] = useState(null);
+  const pendingRef = useRef(null);
 
   const handleDragStart = useCallback(
     (e, taskId, type) => {
+      if (e.button !== 0) return;
       e.preventDefault();
-      e.stopPropagation();
 
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
 
-      const startX = e.clientX;
-      const state = {
+      const pending = {
         taskId,
-        type, // 'move', 'resize-left', 'resize-right'
-        startX,
+        type,
+        startX: e.clientX,
         originalStart: new Date(task.startDate),
         originalEnd: new Date(task.endDate),
+        activated: false,
+      };
+      pendingRef.current = pending;
+
+      const onMove = (me) => {
+        const p = pendingRef.current;
+        if (!p) return;
+
+        const dx = me.clientX - p.startX;
+
+        if (!p.activated) {
+          if (Math.abs(dx) < DRAG_THRESHOLD) return;
+          p.activated = true;
+          setDragState({ taskId: p.taskId, type: p.type });
+        }
+
+        const dayDelta = Math.round(dx / dayWidth);
+        let newStart, newEnd;
+
+        if (p.type === 'move') {
+          newStart = addDays(p.originalStart, dayDelta);
+          newEnd = addDays(p.originalEnd, dayDelta);
+        } else if (p.type === 'resize-left') {
+          newStart = addDays(p.originalStart, dayDelta);
+          newEnd = new Date(p.originalEnd);
+          if (newStart >= newEnd) newStart = addDays(newEnd, -1);
+        } else if (p.type === 'resize-right') {
+          newStart = new Date(p.originalStart);
+          newEnd = addDays(p.originalEnd, dayDelta);
+          if (newEnd <= newStart) newEnd = addDays(newStart, 1);
+        }
+
+        onTaskUpdate(p.taskId, {
+          startDate: startOfDay(newStart),
+          endDate: startOfDay(newEnd),
+        });
       };
 
-      dragRef.current = state;
-      setDragState(state);
+      const onUp = () => {
+        pendingRef.current = null;
+        setDragState(null);
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     },
-    [tasks]
+    [tasks, dayWidth, onTaskUpdate]
   );
-
-  useEffect(() => {
-    if (!dragState) return;
-
-    const handleMouseMove = (e) => {
-      const state = dragRef.current;
-      if (!state) return;
-
-      const deltaX = e.clientX - state.startX;
-      const dayDelta = Math.round(deltaX / dayWidth);
-
-      const task = tasks.find((t) => t.id === state.taskId);
-      if (!task) return;
-
-      let newStart, newEnd;
-
-      if (state.type === 'move') {
-        newStart = addDays(state.originalStart, dayDelta);
-        newEnd = addDays(state.originalEnd, dayDelta);
-      } else if (state.type === 'resize-left') {
-        newStart = addDays(state.originalStart, dayDelta);
-        newEnd = new Date(state.originalEnd);
-        if (newStart >= newEnd) {
-          newStart = addDays(newEnd, -1);
-        }
-      } else if (state.type === 'resize-right') {
-        newStart = new Date(state.originalStart);
-        newEnd = addDays(state.originalEnd, dayDelta);
-        if (newEnd <= newStart) {
-          newEnd = addDays(newStart, 1);
-        }
-      }
-
-      onTaskUpdate(state.taskId, {
-        startDate: startOfDay(newStart),
-        endDate: startOfDay(newEnd),
-      });
-    };
-
-    const handleMouseUp = () => {
-      dragRef.current = null;
-      setDragState(null);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [dragState, tasks, dayWidth, onTaskUpdate]);
 
   return {
     isDragging: !!dragState,
-    dragTaskId: dragState?.taskId,
-    dragType: dragState?.type,
+    dragTaskId: dragState?.taskId ?? null,
+    dragType: dragState?.type ?? null,
     handleDragStart,
   };
 }

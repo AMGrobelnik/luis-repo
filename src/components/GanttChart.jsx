@@ -1,10 +1,11 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import GanttTimeline from './GanttTimeline';
 import GanttGrid from './GanttGrid';
 import GanttTaskBar from './GanttTaskBar';
 import DependencyLines from './DependencyLines';
+import Tooltip from './Tooltip';
 import { useGanttDrag } from '../hooks/useGanttDrag';
-import { getTimelineRange, generateDateRange, isSameDay, diffDays, startOfDay } from '../utils/dateUtils';
+import { getTimelineRange, generateDateRange, isSameDay } from '../utils/dateUtils';
 import { GROUPS } from '../utils/sampleData';
 
 const ZOOM_CONFIG = {
@@ -21,18 +22,22 @@ export default function GanttChart({
   zoom,
   selectedTaskId,
   onSelectTask,
+  onEditTask,
   collapsedGroups,
   scrollToToday,
 }) {
   const chartRef = useRef(null);
   const { dayWidth } = ZOOM_CONFIG[zoom];
 
+  const [hoveredTask, setHoveredTask] = useState(null);
+  const [hoverRect, setHoverRect] = useState(null);
+  const [chartRect, setChartRect] = useState(null);
+
   const { start: timelineStart, end: timelineEnd } = useMemo(
     () => getTimelineRange(tasks),
     [tasks]
   );
 
-  // Build visible tasks respecting group collapse
   const visibleTasks = useMemo(() => {
     const groups = [...new Set(tasks.map((t) => t.group))];
     const orderedGroups = [
@@ -49,11 +54,10 @@ export default function GanttChart({
     return result;
   }, [tasks, collapsedGroups]);
 
-  const { isDragging, dragTaskId, dragType, handleDragStart } = useGanttDrag({
+  const { isDragging, dragTaskId, handleDragStart } = useGanttDrag({
     tasks,
     onTaskUpdate,
     dayWidth,
-    timelineStart,
   });
 
   // Scroll to today
@@ -67,13 +71,44 @@ export default function GanttChart({
       const scrollX = todayIndex * dayWidth - chartRef.current.clientWidth / 3;
       chartRef.current.scrollLeft = Math.max(0, scrollX);
     }
-  }, [scrollToToday, zoom]);
+  }, [scrollToToday, zoom, timelineStart, timelineEnd, dayWidth]);
+
+  // Track chart position for tooltip
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const update = () => {
+      if (chartRef.current) setChartRect(chartRef.current.getBoundingClientRect());
+    };
+    update();
+    chartRef.current.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
+  const handleHover = useCallback((task, rect) => {
+    setHoveredTask(task);
+    setHoverRect(rect);
+  }, []);
+
+  const handleDoubleClick = useCallback(
+    (taskId) => {
+      onEditTask(taskId);
+    },
+    [onEditTask]
+  );
+
+  // Click on empty space to deselect
+  const handleChartClick = useCallback(() => {
+    onSelectTask(null);
+  }, [onSelectTask]);
 
   const dates = generateDateRange(timelineStart, timelineEnd);
   const totalWidth = dates.length * dayWidth;
 
   return (
-    <div className="gantt-chart" ref={chartRef}>
+    <div className="gantt-chart" ref={chartRef} onClick={handleChartClick}>
       <div className="gantt-chart-inner" style={{ width: totalWidth }}>
         <GanttTimeline
           timelineStart={timelineStart}
@@ -95,6 +130,7 @@ export default function GanttChart({
             timelineStart={timelineStart}
             dayWidth={dayWidth}
             rowHeight={ROW_HEIGHT}
+            totalWidth={totalWidth}
           />
           {visibleTasks.map((task, index) => (
             <GanttTaskBar
@@ -106,13 +142,24 @@ export default function GanttChart({
               rowHeight={ROW_HEIGHT}
               onDragStart={handleDragStart}
               isDragging={isDragging && dragTaskId === task.id}
-              dragType={dragTaskId === task.id ? dragType : null}
               isSelected={selectedTaskId === task.id}
               onSelect={onSelectTask}
+              onDoubleClick={handleDoubleClick}
+              onHover={handleHover}
             />
           ))}
+          {visibleTasks.length === 0 && (
+            <div className="gantt-empty">
+              <div className="gantt-empty-icon">&#128197;</div>
+              <div className="gantt-empty-text">No tasks visible</div>
+              <div className="gantt-empty-hint">Add a task or expand a group to get started</div>
+            </div>
+          )}
         </div>
       </div>
+      {hoveredTask && !isDragging && (
+        <Tooltip task={hoveredTask} anchorRect={hoverRect} chartRect={chartRect} />
+      )}
     </div>
   );
 }

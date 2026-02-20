@@ -1,54 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { formatDateInput, parseDate, addDays } from '../utils/dateUtils';
 import { COLORS, GROUPS } from '../utils/sampleData';
 
-export default function TaskModal({
-  task,
-  tasks,
-  isOpen,
-  onClose,
-  onSave,
-  onDelete,
-}) {
-  const isNew = !task;
-  const [form, setForm] = useState({
+function buildInitialForm(task) {
+  if (task) {
+    return {
+      name: task.name,
+      startDate: formatDateInput(new Date(task.startDate)),
+      endDate: formatDateInput(new Date(task.endDate)),
+      progress: task.progress,
+      color: task.color,
+      group: task.group,
+      milestone: task.milestone,
+      dependencies: task.dependencies || [],
+    };
+  }
+  return {
     name: '',
     startDate: formatDateInput(new Date()),
     endDate: formatDateInput(addDays(new Date(), 5)),
     progress: 0,
-    color: COLORS[0],
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
     group: GROUPS[0],
     milestone: false,
     dependencies: [],
-  });
+  };
+}
 
-  useEffect(() => {
-    if (task) {
-      setForm({
-        name: task.name,
-        startDate: formatDateInput(new Date(task.startDate)),
-        endDate: formatDateInput(new Date(task.endDate)),
-        progress: task.progress,
-        color: task.color,
-        group: task.group,
-        milestone: task.milestone,
-        dependencies: task.dependencies || [],
-      });
-    } else {
-      setForm({
-        name: '',
-        startDate: formatDateInput(new Date()),
-        endDate: formatDateInput(addDays(new Date(), 5)),
-        progress: 0,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-        group: GROUPS[0],
-        milestone: false,
-        dependencies: [],
-      });
-    }
-  }, [task]);
-
-  if (!isOpen) return null;
+// Inner component that remounts when task changes via key
+function TaskModalInner({ task, tasks, onClose, onSave, onDelete }) {
+  const isNew = !task;
+  const [form, setForm] = useState(() => buildInitialForm(task));
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -66,8 +48,14 @@ export default function TaskModal({
     });
   };
 
-  const otherTasks = tasks.filter((t) => !task || t.id !== task.id);
-  const allGroups = [...new Set([...GROUPS, ...tasks.map((t) => t.group)])];
+  const otherTasks = useMemo(
+    () => tasks.filter((t) => !task || t.id !== task.id),
+    [tasks, task]
+  );
+  const allGroups = useMemo(
+    () => [...new Set([...GROUPS, ...tasks.map((t) => t.group)])],
+    [tasks]
+  );
 
   const handleDepToggle = (depId) => {
     setForm((prev) => ({
@@ -228,5 +216,20 @@ export default function TaskModal({
         </form>
       </div>
     </div>
+  );
+}
+
+export default function TaskModal({ task, tasks, isOpen, onClose, onSave, onDelete }) {
+  if (!isOpen) return null;
+
+  return (
+    <TaskModalInner
+      key={task ? task.id : '__new__'}
+      task={task}
+      tasks={tasks}
+      onClose={onClose}
+      onSave={onSave}
+      onDelete={onDelete}
+    />
   );
 }

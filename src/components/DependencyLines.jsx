@@ -6,6 +6,7 @@ export default function DependencyLines({
   timelineStart,
   dayWidth,
   rowHeight,
+  totalWidth,
 }) {
   const taskIndexMap = {};
   visibleTasks.forEach((t, i) => {
@@ -33,30 +34,30 @@ export default function DependencyLines({
 
       const midX = fromX + 12;
 
-      const path =
-        fromRow === toRow
-          ? `M ${fromX} ${fromY} L ${toX} ${toY}`
-          : `M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`;
+      let path;
+      if (fromRow === toRow) {
+        path = `M ${fromX} ${fromY} L ${toX} ${toY}`;
+      } else {
+        path = `M ${fromX} ${fromY} L ${midX} ${fromY} L ${midX} ${toY} L ${toX} ${toY}`;
+      }
 
       lines.push(
-        <g key={`${depId}-${task.id}`}>
-          <path
-            d={path}
-            fill="none"
-            stroke="#8993a4"
-            strokeWidth="1.5"
-            strokeDasharray="4 2"
-            markerEnd="url(#arrowhead)"
-          />
-        </g>
+        <path
+          key={`${depId}-${task.id}`}
+          d={path}
+          fill="none"
+          stroke="#6b7a90"
+          strokeWidth="1.5"
+          strokeDasharray="5 3"
+          markerEnd="url(#dep-arrow)"
+        />
       );
     }
   }
 
   if (lines.length === 0) return null;
 
-  const totalWidth = 5000;
-  const totalHeight = visibleTasks.length * rowHeight;
+  const svgHeight = visibleTasks.length * rowHeight;
 
   return (
     <svg
@@ -66,21 +67,21 @@ export default function DependencyLines({
         top: 0,
         left: 0,
         width: totalWidth,
-        height: totalHeight,
+        height: svgHeight,
         pointerEvents: 'none',
         zIndex: 2,
       }}
     >
       <defs>
         <marker
-          id="arrowhead"
+          id="dep-arrow"
           markerWidth="8"
           markerHeight="6"
           refX="8"
           refY="3"
           orient="auto"
         >
-          <polygon points="0 0, 8 3, 0 6" fill="#8993a4" />
+          <polygon points="0 0, 8 3, 0 6" fill="#6b7a90" />
         </marker>
       </defs>
       {lines}

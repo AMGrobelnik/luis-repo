@@ -1,4 +1,5 @@
-import { diffDays, startOfDay, formatDate } from '../utils/dateUtils';
+import { useRef, useCallback } from 'react';
+import { diffDays, startOfDay } from '../utils/dateUtils';
 
 export default function GanttTaskBar({
   task,
@@ -8,18 +9,30 @@ export default function GanttTaskBar({
   rowHeight,
   onDragStart,
   isDragging,
-  dragType,
   isSelected,
   onSelect,
+  onDoubleClick,
+  onHover,
 }) {
+  const barRef = useRef(null);
   const startDay = diffDays(startOfDay(timelineStart), startOfDay(new Date(task.startDate)));
   const duration = diffDays(startOfDay(new Date(task.startDate)), startOfDay(new Date(task.endDate))) + 1;
 
   const left = startDay * dayWidth;
-  const width = duration * dayWidth;
+  const width = Math.max(duration * dayWidth, dayWidth);
   const top = rowIndex * rowHeight;
-  const barHeight = task.milestone ? rowHeight - 16 : rowHeight - 16;
+  const barHeight = rowHeight - 16;
   const barTop = 8;
+
+  const handleMouseEnter = useCallback(() => {
+    if (barRef.current && onHover) {
+      onHover(task, barRef.current.getBoundingClientRect());
+    }
+  }, [task, onHover]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (onHover) onHover(null, null);
+  }, [onHover]);
 
   if (task.milestone) {
     const size = 18;
@@ -27,6 +40,7 @@ export default function GanttTaskBar({
     const centerY = barTop + barHeight / 2;
     return (
       <div
+        ref={barRef}
         className={`gantt-milestone ${isSelected ? 'selected' : ''}`}
         style={{
           position: 'absolute',
@@ -44,19 +58,25 @@ export default function GanttTaskBar({
           e.stopPropagation();
           onSelect(task.id);
         }}
-        title={`${task.name}\n${formatDate(new Date(task.startDate))}`}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onDoubleClick(task.id);
+        }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
     );
   }
 
   return (
     <div
+      ref={barRef}
       className={`gantt-task-bar ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
       style={{
         position: 'absolute',
         left,
         top: top + barTop,
-        width: Math.max(width, dayWidth),
+        width,
         height: barHeight,
         zIndex: isDragging ? 10 : 3,
       }}
@@ -64,39 +84,43 @@ export default function GanttTaskBar({
         e.stopPropagation();
         onSelect(task.id);
       }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onDoubleClick(task.id);
+      }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      {/* Resize handle left */}
       <div
         className="resize-handle resize-left"
-        onMouseDown={(e) => onDragStart(e, task.id, 'resize-left')}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onDragStart(e, task.id, 'resize-left');
+        }}
       />
 
-      {/* Bar body */}
       <div
         className="bar-body"
         style={{ backgroundColor: task.color }}
         onMouseDown={(e) => onDragStart(e, task.id, 'move')}
-        title={`${task.name}\n${formatDate(new Date(task.startDate))} — ${formatDate(new Date(task.endDate))}\nProgress: ${task.progress}%`}
       >
-        {/* Progress fill */}
         <div
           className="bar-progress"
           style={{
             width: `${task.progress}%`,
-            backgroundColor: 'rgba(0,0,0,0.15)',
+            backgroundColor: 'rgba(0,0,0,0.18)',
           }}
         />
 
-        {/* Label */}
-        {width > 60 && (
-          <span className="bar-label">{task.name}</span>
-        )}
+        {width > 50 && <span className="bar-label">{task.name}</span>}
       </div>
 
-      {/* Resize handle right */}
       <div
         className="resize-handle resize-right"
-        onMouseDown={(e) => onDragStart(e, task.id, 'resize-right')}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onDragStart(e, task.id, 'resize-right');
+        }}
       />
     </div>
   );
